@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Laboratorio conversacional de Nora Quantica">
+    <title>Nora Quantica</title>
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="Nora Quantica, inicio">
+          <span class="brand-mark" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </span>
+          <span>
+            <strong>Nora</strong>
+            <small>laboratorio conversacional</small>
+          </span>
+        </a>
+        <div class="topbar-actions">
+          <span id="modeBadge" class="mode-badge" hidden></span>
+          <button id="newChatButton" class="button button-quiet" type="button">
+            Nueva conversación
+          </button>
+          <button
+            id="labToggle"
+            class="button button-lab"
+            type="button"
+            aria-expanded="false"
+            aria-controls="labPanel"
+          >
+            <span class="pulse" aria-hidden="true"></span>
+            Laboratorio
+          </button>
+        </div>
+      </header>
+
+      <div id="demoNotice" class="demo-notice" hidden>
+        <strong>Simulación local.</strong>
+        Sirve para probar el producto, no para obtener resultados experimentales.
+      </div>
+
+      <main class="workspace">
+        <section class="chat-column" aria-label="Conversación">
+          <div id="emptyState" class="empty-state">
+            <div class="orb" aria-hidden="true"><span></span></div>
+            <p class="eyebrow">Un estado invisible, una conversación distinta</p>
+            <h1>¿De qué hablamos hoy?</h1>
+            <p>
+              Nora recibe una predisposición al comenzar. No conoce emociones ni
+              cambia los hechos: solamente modula cómo sostiene el intercambio.
+            </p>
+            <div class="suggestions" aria-label="Mensajes sugeridos">
+              <button type="button" data-message="Estuve pensando que quizá debería abandonar este proyecto.">
+                Estoy pensando en abandonar un proyecto
+              </button>
+              <button type="button" data-message="No estoy de acuerdo con tu planteo anterior. ¿Lo discutimos?">
+                Quiero discutir una idea
+              </button>
+              <button type="button" data-message="Hola. Tengo una idea medio extraña y quiero pensarla con alguien.">
+                Traigo una idea extraña
+              </button>
+            </div>
+          </div>
+
+          <div id="messages" class="messages" aria-live="polite" aria-label="Mensajes"></div>
+
+          <div class="composer-wrap">
+            <form id="composer" class="composer">
+              <label class="sr-only" for="messageInput">Mensaje</label>
+              <textarea
+                id="messageInput"
+                name="message"
+                rows="1"
+                maxlength="20000"
+                placeholder="Escribí un mensaje…"
+                autocomplete="off"
+              ></textarea>
+              <button id="sendButton" class="send-button" type="submit" aria-label="Enviar mensaje">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M5 12h13M13 6l6 6-6 6"></path>
+                </svg>
+              </button>
+            </form>
+            <p class="composer-note">El estado influye en el estilo, nunca en la veracidad o la seguridad.</p>
+          </div>
+        </section>
+
+        <aside id="labPanel" class="lab-panel" aria-label="Panel de laboratorio" aria-hidden="true">
+          <div class="lab-heading">
+            <div>
+              <p class="eyebrow">Observabilidad</p>
+              <h2>Estado interno</h2>
+            </div>
+            <button id="labClose" class="icon-button" type="button" aria-label="Cerrar laboratorio">×</button>
+          </div>
+
+          <div id="labEmpty" class="lab-empty">
+            Enviá un mensaje para observar la evaluación y la primera transición.
+          </div>
+
+          <div id="labContent" hidden>
+            <section class="lab-section">
+              <div class="section-title">
+                <h3>Fuente inicial</h3>
+                <span id="sourceStatus" class="status-pill"></span>
+              </div>
+              <dl id="sourceDetails" class="detail-list"></dl>
+              <div>
+                <span class="field-label">Bytes registrados</span>
+                <div id="rawBytes" class="byte-strip"></div>
+              </div>
+            </section>
+
+            <section class="lab-section">
+              <h3>Predisposición</h3>
+              <div id="stateMeters" class="state-meters"></div>
+            </section>
+
+            <section class="lab-section">
+              <h3>Preferencias temáticas</h3>
+              <div id="topicAffinityMeters" class="state-meters compact-meters"></div>
+            </section>
+
+            <section class="lab-section">
+              <div class="section-title">
+                <h3>Último impacto</h3>
+                <span id="turnNumber" class="turn-label"></span>
+              </div>
+              <div id="impactGrid" class="metric-grid"></div>
+            </section>
+
+            <section class="lab-section">
+              <h3>Deltas aplicados</h3>
+              <div id="deltaList" class="delta-list"></div>
+            </section>
+
+            <section id="behaviorPlanSection" class="lab-section" hidden>
+              <div class="section-title">
+                <h3>Plan conductual</h3>
+                <span id="behaviorMove" class="turn-label"></span>
+              </div>
+              <div id="behaviorControls" class="state-meters compact-meters"></div>
+            </section>
+
+            <section class="lab-section">
+              <h3>Instrucción conductual</h3>
+              <pre id="behavioralInstruction" class="instruction"></pre>
+            </section>
+
+            <section class="lab-section">
+              <h3>Modelos y latencia</h3>
+              <dl id="modelDetails" class="detail-list"></dl>
+            </section>
+
+            <a id="exportButton" class="button button-export" href="#" download>
+              Exportar sesión JSON
+            </a>
+          </div>
+        </aside>
+      </main>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    <script src="/static/app.js?v=3" defer></script>
+  </body>
+</html>
