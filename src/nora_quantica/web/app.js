@@ -1,4 +1,7 @@
 const dom = {
+  intro: document.querySelector("#introScreen"),
+  enter: document.querySelector("#enterButton"),
+  appShell: document.querySelector("#appShell"),
   composer: document.querySelector("#composer"),
   input: document.querySelector("#messageInput"),
   send: document.querySelector("#sendButton"),
@@ -31,6 +34,9 @@ const dom = {
 
 let conversationId = null;
 let sending = false;
+let started = false;
+let labDetailLevel = "full";
+let sessionExportEnabled = true;
 
 const labels = {
   relational_closeness: "Cercanía relacional",
@@ -140,7 +146,9 @@ async function createConversation() {
     dom.empty.hidden = false;
     dom.labEmpty.hidden = false;
     dom.labContent.hidden = true;
-    dom.exportButton.href = `/api/conversations/${conversationId}/export`;
+    if (sessionExportEnabled) {
+      dom.exportButton.href = `/api/conversations/${conversationId}/export`;
+    }
   } finally {
     setSending(false);
     dom.input.focus();
@@ -154,7 +162,9 @@ async function restoreConversation(id) {
     dom.messages.replaceChildren();
     payload.messages.forEach((message) => addMessage(message.role, message.content));
     dom.empty.hidden = payload.messages.length > 0;
-    dom.exportButton.href = `/api/conversations/${id}/export`;
+    if (sessionExportEnabled) {
+      dom.exportButton.href = `/api/conversations/${id}/export`;
+    }
     await refreshLab();
     return true;
   } catch (_) {
@@ -216,21 +226,29 @@ async function refreshLab() {
   const source = lab.quantum_source;
   dom.sourceStatus.textContent = source.fallback_used ? "fallback" : "QRNG";
   dom.sourceStatus.classList.toggle("fallback", source.fallback_used);
-  dom.sourceDetails.replaceChildren(details([
-    ["Perfil", `${lab.prompt_profile.name} / ${lab.prompt_profile.version}`],
-    ["Hash perfil", lab.prompt_profile.content_hash.slice(0, 12)],
-    ["Proveedor", source.provider],
-    ["Recuperado", new Date(source.retrieved_at).toLocaleString()],
-    ["Hash SHA-256", source.raw_bytes_hash],
-    ["Tipo de fallback", source.fallback_type],
-    ["Replay auditable", lab.audit.passed ? `${lab.audit.checks} controles OK` : lab.audit.errors.join("; ")],
-  ]));
-  dom.rawBytes.replaceChildren(...source.raw_bytes.map((value) => {
-    const span = document.createElement("span");
-    span.textContent = value.toString(16).padStart(2, "0");
-    span.title = String(value);
-    return span;
-  }));
+  const sourceItems = labDetailLevel === "full"
+    ? [
+        ["Perfil", `${lab.prompt_profile.name} / ${lab.prompt_profile.version}`],
+        ["Hash perfil", lab.prompt_profile.content_hash.slice(0, 12)],
+        ["Proveedor", source.provider],
+        ["Recuperado", new Date(source.retrieved_at).toLocaleString()],
+        ["Hash SHA-256", source.raw_bytes_hash],
+        ["Tipo de fallback", source.fallback_type],
+        ["Replay auditable", lab.audit.passed ? `${lab.audit.checks} controles OK` : lab.audit.errors.join("; ")],
+      ]
+    : [
+        ["Fuente", source.provider],
+        ["Generado", new Date(source.retrieved_at).toLocaleString()],
+      ];
+  dom.sourceDetails.replaceChildren(details(sourceItems));
+  if (labDetailLevel === "full") {
+    dom.rawBytes.replaceChildren(...source.raw_bytes.map((value) => {
+      const span = document.createElement("span");
+      span.textContent = value.toString(16).padStart(2, "0");
+      span.title = String(value);
+      return span;
+    }));
+  }
 
   dom.stateMeters.replaceChildren();
   const values = {
@@ -277,24 +295,36 @@ async function refreshLab() {
     row.append(label, number);
     return row;
   }));
-  const plan = turn.behavioral_plan;
-  dom.behaviorPlanSection.hidden = !plan;
-  if (plan) {
+  const plan = labDetailLevel === "full" ? turn.behavioral_plan : null;
+  dom.behaviorPlanSection.hidden = !plan || labDetailLevel !== "full";
+  if (plan && labDetailLevel === "full") {
     dom.behaviorMove.textContent = plan.move;
     dom.behaviorControls.replaceChildren(
       ...Object.entries(plan.controls).map(([name, value]) => meter(name, value)),
     );
   }
-  dom.instruction.textContent = turn.behavioral_instruction;
-  dom.modelDetails.replaceChildren(details([
-    ["Evaluador", `${turn.evaluator_provider} / ${turn.evaluator_model}`],
-    ["Latencia eval.", `${turn.evaluator_latency_ms} ms`],
-    ["Generador", `${turn.generator_provider} / ${turn.generator_model}`],
-    ["Latencia gen.", `${turn.generator_latency_ms} ms`],
-    ["Delta máximo", turn.max_delta],
-    ["Afinidad con el tema", lab.last_topic_affinity == null ? null : Math.round(lab.last_topic_affinity)],
-    ["Política conductual", lab.behavior_policy],
-  ]));
+  if (labDetailLevel === "full") {
+    dom.instruction.textContent = turn.behavioral_instruction;
+    dom.modelDetails.replaceChildren(details([
+      ["Evaluador", `${turn.evaluator_provider} / ${turn.evaluator_model}`],
+      ["Latencia eval.", `${turn.evaluator_latency_ms} ms`],
+      ["Generador", `${turn.generator_provider} / ${turn.generator_model}`],
+      ["Latencia gen.", `${turn.generator_latency_ms} ms`],
+      ["Delta máximo", turn.max_delta],
+      ["Afinidad con el tema", lab.last_topic_affinity == null ? null : Math.round(lab.last_topic_affinity)],
+      ["Política conductual", lab.behavior_policy],
+    ]));
+  }
+}
+
+function applyUiCapabilities() {
+  document.querySelectorAll("[data-full-detail]").forEach((element) => {
+    element.hidden = labDetailLevel !== "full";
+  });
+  document.querySelectorAll("[data-session-export]").forEach((element) => {
+    element.hidden = !sessionExportEnabled;
+    if (!sessionExportEnabled) element.removeAttribute("href");
+  });
 }
 
 function toggleLab(force) {
@@ -324,9 +354,25 @@ dom.input.addEventListener("keydown", (event) => {
 dom.newChat.addEventListener("click", () => createConversation().catch((error) => showToast(error.message)));
 dom.labToggle.addEventListener("click", () => toggleLab());
 dom.labClose.addEventListener("click", () => toggleLab(false));
-document.querySelectorAll("[data-message]").forEach((button) => {
-  button.addEventListener("click", () => sendMessage(button.dataset.message));
-});
+
+async function enterExperience() {
+  if (started) return;
+  started = true;
+  dom.enter.disabled = true;
+  try {
+    const stored = sessionStorage.getItem("nora.conversation");
+    if (!stored || !(await restoreConversation(stored))) await createConversation();
+    dom.intro.hidden = true;
+    dom.appShell.hidden = false;
+    dom.input.focus();
+  } catch (error) {
+    started = false;
+    dom.enter.disabled = false;
+    showToast(`No se pudo iniciar Nora: ${error.message}`);
+  }
+}
+
+dom.enter.addEventListener("click", enterExperience);
 
 async function boot() {
   try {
@@ -334,8 +380,9 @@ async function boot() {
     dom.modeBadge.textContent = health.mode;
     dom.modeBadge.hidden = false;
     dom.demoNotice.hidden = health.mode !== "demo";
-    const stored = sessionStorage.getItem("nora.conversation");
-    if (!stored || !(await restoreConversation(stored))) await createConversation();
+    labDetailLevel = health.lab_detail_level || "full";
+    sessionExportEnabled = health.session_export_enabled !== false;
+    applyUiCapabilities();
   } catch (error) {
     showToast(`No se pudo iniciar Nora: ${error.message}`);
   }

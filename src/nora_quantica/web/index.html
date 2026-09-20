@@ -3,12 +3,36 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Laboratorio conversacional de Nora Quantica">
+    <meta name="description" content="Hablá con Nora">
     <title>Nora Quantica</title>
-    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/styles.css?v=6">
   </head>
   <body>
-    <div class="app-shell">
+    <section id="introScreen" class="intro-screen" aria-labelledby="introTitle">
+      <div class="intro-card">
+        <img
+          class="intro-image"
+          src="/static/nora.jpg"
+          alt="Retrato ilustrado de Nora"
+          width="1024"
+          height="1024"
+        >
+        <div class="intro-copy">
+          <h1 id="introTitle">Nora</h1>
+          <p>
+            Su personalidad y sus disposiciones se generan, en cada encuentro, a partir
+            de números aleatorios obtenidos al medir con láser las fluctuaciones cuánticas
+            del vacío, en un laboratorio de la Universidad Nacional Australiana.
+          </p>
+          <button id="enterButton" class="intro-button" type="button">
+            Hablá con Nora
+            <span aria-hidden="true">→</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <div id="appShell" class="app-shell" hidden>
       <header class="topbar">
         <a class="brand" href="/" aria-label="Nora Quantica, inicio">
           <span class="brand-mark" aria-hidden="true">
@@ -16,7 +40,6 @@
           </span>
           <span>
             <strong>Nora</strong>
-            <small>laboratorio conversacional</small>
           </span>
         </a>
         <div class="topbar-actions">
@@ -32,7 +55,7 @@
             aria-controls="labPanel"
           >
             <span class="pulse" aria-hidden="true"></span>
-            Laboratorio
+            Estado de Nora
           </button>
         </div>
       </header>
@@ -46,23 +69,11 @@
         <section class="chat-column" aria-label="Conversación">
           <div id="emptyState" class="empty-state">
             <div class="orb" aria-hidden="true"><span></span></div>
-            <p class="eyebrow">Un estado invisible, una conversación distinta</p>
-            <h1>¿De qué hablamos hoy?</h1>
-            <p>
-              Nora recibe una predisposición al comenzar. No conoce emociones ni
-              cambia los hechos: solamente modula cómo sostiene el intercambio.
-            </p>
-            <div class="suggestions" aria-label="Mensajes sugeridos">
-              <button type="button" data-message="Estuve pensando que quizá debería abandonar este proyecto.">
-                Estoy pensando en abandonar un proyecto
-              </button>
-              <button type="button" data-message="No estoy de acuerdo con tu planteo anterior. ¿Lo discutimos?">
-                Quiero discutir una idea
-              </button>
-              <button type="button" data-message="Hola. Tengo una idea medio extraña y quiero pensarla con alguien.">
-                Traigo una idea extraña
-              </button>
-            </div>
+            <h1>Hablá con Nora</h1>
+            <blockquote>
+              <p>“El sol es nuevo cada día.”</p>
+              <cite>— Heráclito</cite>
+            </blockquote>
           </div>
 
           <div id="messages" class="messages" aria-live="polite" aria-label="Mensajes"></div>
@@ -75,7 +86,7 @@
                 name="message"
                 rows="1"
                 maxlength="20000"
-                placeholder="Escribí un mensaje…"
+                placeholder="Decile algo…"
                 autocomplete="off"
               ></textarea>
               <button id="sendButton" class="send-button" type="submit" aria-label="Enviar mensaje">
@@ -84,17 +95,13 @@
                 </svg>
               </button>
             </form>
-            <p class="composer-note">El estado influye en el estilo, nunca en la veracidad o la seguridad.</p>
           </div>
         </section>
 
-        <aside id="labPanel" class="lab-panel" aria-label="Panel de laboratorio" aria-hidden="true">
+        <aside id="labPanel" class="lab-panel" aria-label="Estado de Nora" aria-hidden="true">
           <div class="lab-heading">
-            <div>
-              <p class="eyebrow">Observabilidad</p>
-              <h2>Estado interno</h2>
-            </div>
-            <button id="labClose" class="icon-button" type="button" aria-label="Cerrar laboratorio">×</button>
+            <h2>Estado de Nora</h2>
+            <button id="labClose" class="icon-button" type="button" aria-label="Cerrar Estado de Nora">×</button>
           </div>
 
           <div id="labEmpty" class="lab-empty">
@@ -104,11 +111,11 @@
           <div id="labContent" hidden>
             <section class="lab-section">
               <div class="section-title">
-                <h3>Fuente inicial</h3>
+                <h3>Origen cuántico</h3>
                 <span id="sourceStatus" class="status-pill"></span>
               </div>
               <dl id="sourceDetails" class="detail-list"></dl>
-              <div>
+              <div data-full-detail>
                 <span class="field-label">Bytes registrados</span>
                 <div id="rawBytes" class="byte-strip"></div>
               </div>
@@ -126,7 +133,7 @@
 
             <section class="lab-section">
               <div class="section-title">
-                <h3>Último impacto</h3>
+                <h3>Último cambio</h3>
                 <span id="turnNumber" class="turn-label"></span>
               </div>
               <div id="impactGrid" class="metric-grid"></div>
@@ -137,7 +144,7 @@
               <div id="deltaList" class="delta-list"></div>
             </section>
 
-            <section id="behaviorPlanSection" class="lab-section" hidden>
+            <section id="behaviorPlanSection" class="lab-section" data-full-detail hidden>
               <div class="section-title">
                 <h3>Plan conductual</h3>
                 <span id="behaviorMove" class="turn-label"></span>
@@ -145,17 +152,17 @@
               <div id="behaviorControls" class="state-meters compact-meters"></div>
             </section>
 
-            <section class="lab-section">
+            <section class="lab-section" data-full-detail>
               <h3>Instrucción conductual</h3>
               <pre id="behavioralInstruction" class="instruction"></pre>
             </section>
 
-            <section class="lab-section">
+            <section class="lab-section" data-full-detail>
               <h3>Modelos y latencia</h3>
               <dl id="modelDetails" class="detail-list"></dl>
             </section>
 
-            <a id="exportButton" class="button button-export" href="#" download>
+            <a id="exportButton" class="button button-export" data-session-export href="#" download>
               Exportar sesión JSON
             </a>
           </div>
@@ -164,6 +171,6 @@
     </div>
 
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-    <script src="/static/app.js?v=3" defer></script>
+    <script src="/static/app.js?v=4" defer></script>
   </body>
 </html>

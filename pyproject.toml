@@ -21,6 +21,9 @@ api = [
   "python-dotenv>=1.0,<2",
   "uvicorn[standard]>=0.34,<1",
 ]
+cloud = [
+  "google-cloud-firestore>=2.19,<3",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/nora_quantica"]

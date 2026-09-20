@@ -53,7 +53,10 @@ def test_audit_detects_tampered_behavioral_plan(tmp_path) -> None:
     state = asyncio.run(service.create_conversation())
     asyncio.run(service.send_message(state.conversation_id, "Hola"))
     exported = service.export_session(state.conversation_id)
-    exported["turns"][0]["behavioral_plan"]["move"] = "brief_close"
+    current_move = exported["turns"][0]["behavioral_plan"]["move"]
+    exported["turns"][0]["behavioral_plan"]["move"] = (
+        "direct_answer" if current_move != "direct_answer" else "brief_close"
+    )
 
     report = audit_session(exported)
 

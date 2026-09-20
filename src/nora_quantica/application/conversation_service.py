@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import json
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -45,6 +46,10 @@ class EntropyAcquirer(Protocol):
 
 
 class ConversationNotFoundError(KeyError):
+    pass
+
+
+class ConversationTurnLimitError(RuntimeError):
     pass
 
 
@@ -103,33 +108,50 @@ class ConversationService:
         generator: ChatModel,
         state_engine: StateEngine | None = None,
         history_limit: int = 24,
+        max_turns: int = 24,
         prompt_profile: PromptProfile = BASELINE_PROFILE,
         behavior_policy: str = MOVES_POLICY,
         behavior_seed_id: str | None = None,
     ) -> None:
         if behavior_policy not in SUPPORTED_POLICIES:
             raise ValueError(f"Política conductual desconocida: {behavior_policy}")
+        if history_limit <= 0:
+            raise ValueError("El límite de historial debe ser positivo")
+        if max_turns <= 0:
+            raise ValueError("El límite de turnos debe ser positivo")
         self.store = store
         self.entropy = entropy
         self.evaluator = evaluator
         self.generator = generator
         self.state_engine = state_engine or StateEngine()
         self.history_limit = history_limit
+        self.max_turns = max_turns
         self.prompt_profile = prompt_profile
         self.behavior_policy = behavior_policy
         self.behavior_seed_id = behavior_seed_id
         self._locks: dict[str, asyncio.Lock] = {}
 
-    async def create_conversation(self) -> ConversationState:
+    async def create_conversation(self, owner_session: str | None = None) -> ConversationState:
         sample = await self.entropy.acquire()
         state = initial_state_from_entropy(sample)
         state.metadata["state_engine_config"] = asdict(self.state_engine.config)
         state.metadata["prompt_profile"] = self.prompt_profile.snapshot()
         state.metadata["behavior_policy"] = policy_snapshot(self.behavior_policy)
+        if owner_session is not None:
+            state.metadata["owner_session"] = owner_session
         if self.behavior_seed_id is not None:
             state.metadata["behavior_seed_id"] = self.behavior_seed_id
         self.store.create_conversation(state, sample.raw_bytes)
         return state
+
+    def assert_owner(self, conversation_id: str, owner_session: str) -> None:
+        state = self.get_conversation(conversation_id)
+        stored_owner = state.metadata.get("owner_session")
+        if stored_owner is not None and not hmac.compare_digest(
+            str(stored_owner),
+            owner_session,
+        ):
+            raise ConversationNotFoundError(conversation_id)
 
     def get_conversation(self, conversation_id: str) -> ConversationState:
         state = self.store.get_conversation(conversation_id)
@@ -154,6 +176,10 @@ class ConversationService:
 
     async def _send_locked(self, conversation_id: str, message: str) -> TurnResult:
         state = self.get_conversation(conversation_id)
+        if state.turn_number >= self.max_turns:
+            raise ConversationTurnLimitError(
+                f"La conversación alcanzó el límite de {self.max_turns} turnos"
+            )
         profile = self._profile_for_state(state)
         stored_history = self.store.list_messages(conversation_id)
         history = [
@@ -298,4 +324,7 @@ class ConversationService:
         exported = self.store.export_session(conversation_id)
         if exported is None:
             raise ConversationNotFoundError(conversation_id)
+        metadata = dict(exported.get("metadata", {}))
+        metadata.pop("owner_session", None)
+        exported["metadata"] = metadata
         return exported

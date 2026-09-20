@@ -135,6 +135,21 @@ def test_history_is_forwarded_on_second_turn(tmp_path) -> None:
     assert second_history[-1]["content"] == "Segundo mensaje"
 
 
+def test_conversation_stops_before_calling_models_at_turn_limit(tmp_path) -> None:
+    service, store, evaluator, generator = make_service(tmp_path)
+    service.max_turns = 1
+    state = asyncio.run(service.create_conversation())
+    asyncio.run(service.send_message(state.conversation_id, "Primer mensaje"))
+
+    with pytest.raises(RuntimeError, match="límite de 1 turnos"):
+        asyncio.run(service.send_message(state.conversation_id, "Segundo mensaje"))
+
+    restored = store.get_conversation(state.conversation_id)
+    assert restored is not None and restored.turn_number == 1
+    assert len(evaluator.calls) == 1
+    assert len(generator.calls) == 1
+
+
 def test_conversation_keeps_profile_snapshot_when_active_profile_changes(tmp_path) -> None:
     first = PromptProfile(
         name="experimental",

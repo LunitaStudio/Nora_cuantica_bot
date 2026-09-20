@@ -1,0 +1,14 @@
+.gcloudignore
+.git
+.gitignore
+.env
+.venv
+.pytest_cache
+.ruff_cache
+__pycache__
+*.pyc
+data
+deploy/cloud-run.env.yaml
+firebase-debug.log
+tests
+tools

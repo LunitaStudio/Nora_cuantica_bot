@@ -6,9 +6,15 @@ __pycache__/
 .uv-cache/
 .uv-tools/
 .env
+firebase-debug.log
+.firebase/
+deploy/cloud-run.env.yaml
 data/
 dist/
 build/
 *.egg-info/
 *.md
+!README.md
+docs/
+paper/
 viaje/

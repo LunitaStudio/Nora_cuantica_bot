@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 from fastapi.testclient import TestClient
 
 from nora_quantica.api import create_app
@@ -29,7 +31,13 @@ def test_api_conversation_chat_lab_and_export(tmp_path) -> None:
         assert "frame-ancestors 'none'" in homepage.headers["content-security-policy"]
         assert homepage.headers["x-content-type-options"] == "nosniff"
         assert client.get("/static/app.js").status_code == 200
-        assert client.get("/api/health").json() == {"status": "ok", "mode": "demo"}
+        assert client.get("/static/nora.jpg").status_code == 200
+        assert client.get("/api/health").json() == {
+            "status": "ok",
+            "mode": "demo",
+            "lab_detail_level": "full",
+            "session_export_enabled": True,
+        }
         created = client.post("/api/conversations")
         assert created.status_code == 201
         assert created.json()["prompt_profile"] == "baseline"
@@ -51,6 +59,7 @@ def test_api_conversation_chat_lab_and_export(tmp_path) -> None:
         exported = client.get(f"/api/conversations/{conversation_id}/export")
         assert exported.status_code == 200
         assert "attachment" in exported.headers["content-disposition"]
+        assert "owner_session" not in exported.json()["metadata"]
 
 
 def test_api_returns_404_and_rejects_empty_message(tmp_path) -> None:
@@ -84,3 +93,92 @@ def test_api_maps_provider_failure_to_502_without_advancing_turn(tmp_path) -> No
     restored = store.get_conversation(conversation_id)
     assert restored is not None and restored.turn_number == 0
     assert store.list_messages(conversation_id) == []
+
+
+def test_api_returns_429_at_conversation_turn_limit(tmp_path) -> None:
+    service, _, _, _ = make_service(tmp_path)
+    service.max_turns = 1
+    app = create_app(service, settings(str(tmp_path / "api.db")))
+    with TestClient(app) as client:
+        conversation_id = client.post("/api/conversations").json()["conversation_id"]
+        assert client.post(
+            f"/api/conversations/{conversation_id}/messages",
+            json={"message": "Primero"},
+        ).status_code == 200
+
+        response = client.post(
+            f"/api/conversations/{conversation_id}/messages",
+            json={"message": "Segundo"},
+        )
+
+    assert response.status_code == 429
+    assert "límite de 1 turnos" in response.json()["detail"]
+
+
+def test_api_rate_limits_anonymous_conversation_creation(tmp_path) -> None:
+    service, _, _, _ = make_service(tmp_path)
+    limited_settings = replace(
+        settings(str(tmp_path / "api.db")),
+        rate_limit_enabled=True,
+        conversations_per_hour=1,
+        conversations_per_ip_day=10,
+    )
+    app = create_app(service, limited_settings)
+    with TestClient(app) as client:
+        first = client.post("/api/conversations")
+        second = client.post("/api/conversations")
+
+    assert first.status_code == 201
+    assert "__session" in first.cookies
+    assert second.status_code == 429
+    assert int(second.headers["retry-after"]) > 0
+
+
+def test_api_hides_conversations_from_other_anonymous_sessions(tmp_path) -> None:
+    service, _, _, _ = make_service(tmp_path)
+    app = create_app(service, settings(str(tmp_path / "api.db")))
+    with TestClient(app) as owner:
+        created = owner.post("/api/conversations")
+        conversation_id = created.json()["conversation_id"]
+        assert owner.get(
+            f"/api/conversations/{conversation_id}/messages"
+        ).status_code == 200
+
+    with TestClient(app) as stranger:
+        assert stranger.get(
+            f"/api/conversations/{conversation_id}/messages"
+        ).status_code == 404
+        assert stranger.get(
+            f"/api/conversations/{conversation_id}/export"
+        ).status_code == 404
+
+
+def test_api_simple_lab_omits_internal_recipe_and_disables_export(tmp_path) -> None:
+    service, _, _, _ = make_service(tmp_path)
+    public_settings = replace(
+        settings(str(tmp_path / "api.db")),
+        lab_detail_level="simple",
+        session_export_enabled=False,
+    )
+    app = create_app(service, public_settings)
+
+    with TestClient(app) as client:
+        health = client.get("/api/health").json()
+        assert health["lab_detail_level"] == "simple"
+        assert health["session_export_enabled"] is False
+        conversation_id = client.post("/api/conversations").json()["conversation_id"]
+        client.post(
+            f"/api/conversations/{conversation_id}/messages",
+            json={"message": "Hola"},
+        )
+
+        lab = client.get(f"/api/conversations/{conversation_id}/lab").json()
+        exported = client.get(f"/api/conversations/{conversation_id}/export")
+
+    assert "prompt_profile" not in lab
+    assert "audit" not in lab
+    assert "raw_bytes" not in lab["quantum_source"]
+    assert "behavioral_instruction" not in lab["last_turn"]
+    assert "behavioral_plan" not in lab["last_turn"]
+    assert "evaluator_model" not in lab["last_turn"]
+    assert exported.status_code == 404

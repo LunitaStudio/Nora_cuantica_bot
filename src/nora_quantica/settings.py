@@ -39,6 +39,20 @@ class Settings:
     generator: ModelSettings
     behavior_policy: str = "moves_v1"
     history_limit: int = 24
+    max_turns: int = 24
+    storage_backend: str = "sqlite"
+    firestore_project_id: str | None = None
+    firestore_collection_prefix: str = "nora"
+    conversation_retention_hours: int = 48
+    rate_limit_enabled: bool = False
+    conversations_per_hour: int = 3
+    conversations_per_ip_day: int = 10
+    messages_per_minute: int = 12
+    messages_per_ip_day: int = 120
+    session_secret: str | None = None
+    session_cookie_secure: bool = False
+    lab_detail_level: str = "full"
+    session_export_enabled: bool = True
     experiment_initial_bytes_hex: str | None = None
     experiment_behavior_seed_id: str | None = None
 
@@ -70,6 +84,35 @@ class Settings:
             ),
             behavior_policy=os.getenv("BEHAVIOR_POLICY", "moves_v1").lower(),
             history_limit=int(os.getenv("HISTORY_LIMIT", "24")),
+            max_turns=int(os.getenv("MAX_TURNS_PER_CONVERSATION", "24")),
+            storage_backend=os.getenv("STORAGE_BACKEND", "sqlite").lower(),
+            firestore_project_id=os.getenv("FIRESTORE_PROJECT_ID") or None,
+            firestore_collection_prefix=os.getenv(
+                "FIRESTORE_COLLECTION_PREFIX", "nora"
+            ),
+            conversation_retention_hours=int(
+                os.getenv("CONVERSATION_RETENTION_HOURS", "48")
+            ),
+            rate_limit_enabled=os.getenv("RATE_LIMIT_ENABLED", "false").lower()
+            in {"1", "true", "yes"},
+            conversations_per_hour=int(
+                os.getenv("CONVERSATIONS_PER_HOUR", "3")
+            ),
+            conversations_per_ip_day=int(
+                os.getenv("CONVERSATIONS_PER_IP_DAY", "10")
+            ),
+            messages_per_minute=int(os.getenv("MESSAGES_PER_MINUTE", "12")),
+            messages_per_ip_day=int(os.getenv("MESSAGES_PER_IP_DAY", "120")),
+            session_secret=os.getenv("SESSION_SECRET") or None,
+            session_cookie_secure=os.getenv(
+                "SESSION_COOKIE_SECURE", "false"
+            ).lower()
+            in {"1", "true", "yes"},
+            lab_detail_level=os.getenv("LAB_DETAIL_LEVEL", "full").lower(),
+            session_export_enabled=os.getenv(
+                "SESSION_EXPORT_ENABLED", "true"
+            ).lower()
+            in {"1", "true", "yes"},
             experiment_initial_bytes_hex=(
                 os.getenv("EXPERIMENT_INITIAL_BYTES_HEX", "").strip() or None
             ),

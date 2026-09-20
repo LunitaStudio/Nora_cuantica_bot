@@ -1,0 +1,20 @@
+{
+  "hosting": {
+    "public": "firebase-public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "run": {
+          "serviceId": "nora-quantica",
+          "region": "us-east1",
+          "pinTag": true
+        }
+      }
+    ]
+  }
+}
